@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Search Component</title>
+
+  <!-- Google Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- React + ReactDOM (UMD) and Babel for JSX in the browser -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 0;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f5f5f7; color: #111827;
+    }
+    .app { max-width: 900px; margin: 40px auto 80px; padding: 0 24px; }
+    .page-title { text-align: center; font-size: 40px; font-weight: 700; margin-bottom: 4px; }
+    .page-subtitle { text-align: center; color: #6b7280; margin-bottom: 32px; font-size: 16px; }
+
+    .search-container {
+      display: flex; align-items: center; background: #ffffff; border-radius: 0px;
+      padding: 0 8px 0 18px; border: 1px solid #e5e7eb;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08); height: 64px; margin-bottom: 24px;
+    }
+    .search-input { border: none; outline: none; flex: 1; font-size: 18px; padding: 0 8px; background: transparent; }
+    .search-input::placeholder { color: #9ca3af; }
+    .search-button {
+      border: none; outline: none; margin-right: -10px; border-radius: 0px; padding: 20px 20px;
+      font-size: 14px; font-weight: 500; cursor: pointer; background: #020617; color: white;
+      transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease; flex-shrink: 0;
+    }
+    .search-button:hover { background: #A31E0A; box-shadow: 0 8px 20px rgba(15, 23, 42, 0.25); transform: translateY(-1px); }
+    .search-button:active { transform: translateY(0); box-shadow: none; }
+
+    .results-wrapper { margin-top: 12px; }
+
+    /* Loading bar */
+    .loading-bar { height: 3px; width: 100%; background: #e5e7eb; border-radius: 999px; overflow: hidden; margin-bottom: 16px; }
+    .loading-bar-inner {
+      height: 100%; width: 40%; background: linear-gradient(90deg, #111827, #4b5563);
+      border-radius: 999px; animation: loadingSlide 1.0s ease-in-out infinite;
+    }
+    @keyframes loadingSlide {
+      0% { transform: translateX(-100%); }
+      50% { transform: translateX(40%); }
+      100% { transform: translateX(140%); }
+    }
+
+    /* Answer card */
+    .answer-label { font-size: 12px; font-weight: 500; color: #6b7280; margin-bottom: 6px; }
+    .answer-card {
+      background: #ffffff; border-radius: 18px; padding: 18px 20px; border: 1px solid #e5e7eb;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06); margin-bottom: 28px;
+    }
+    .answer-text { font-size: 14px; line-height: 1.6; color: #374151; }
+
+    /* Results list 
+    .result-item { margin-bottom: 20px; }
+    .result-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+    .result-link { font-size: 13px; color: #6b7280; }
+    */
+
+    /* Skeleton styles */
+    .skeleton { position: relative; overflow: hidden; border-radius: 999px; background: #e5e7eb; }
+    .skeleton::after {
+      content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+      background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.7) 50%, rgba(255,255,255,0) 100%);
+      animation: shimmer 1.3s infinite;
+    }
+    @keyframes shimmer { 100% { transform: translateX(100%); } }
+    .skeleton-line { height: 12px; margin: 7px 0; }
+    .skeleton-line.w-90 { width: 90%; }
+    .skeleton-line.w-80 { width: 80%; }
+    .skeleton-line.w-70 { width: 70%; }
+    .skeleton-line.w-50 { width: 50%; }
+    .skeleton-title { height: 16px; width: 60%; margin-bottom: 5px; }
+    .skeleton-url { height: 11px; width: 40%; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState } = React;
+
+    function App() {
+      const [query, setQuery] = useState("");
+      const [loading, setLoading] = useState(false);
+      const [results, setResults] = useState(null);
+      const [error, setError] = useState(null);
+
+      const handleSearch = async () => {
+        const trimmed = query.trim();
+        if (!trimmed || loading) return;
+
+        setLoading(true);
+        setResults(null);
+        setError(null);
+
+        try {
+          // call to Flask route
+          const resp = await fetch(`/api?query=${encodeURIComponent(trimmed)}`);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const text = await resp.text();
+
+          // Wrap backend string 
+          setResults({ answer: text, links: [] });
+        } catch (e) {
+          setError(e.message || "Request failed");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const handleKeyDown = (event) => {
+        if (event.key === "Enter") handleSearch();
+      };
+
+      return (
+        <div className="app">
+          <h1 className="page-title">Search Component</h1>
+          <p className="page-subtitle">A search bar</p>
+
+          <div className="search-container">
+            <input
+              className="search-input"
+              placeholder="search something"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+            <button className="search-button" onClick={handleSearch}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="7"></circle>
+                <line x1="16.5" y1="16.5" x2="21" y2="21"></line>
+              </svg>
+            </button>
+          </div>
+
+          <div className="results-wrapper">
+            {loading && (
+              <>
+                <div className="loading-bar"><div className="loading-bar-inner" /></div>
+                <div className="answer-label">Answer</div>
+                <div className="answer-card">
+                  <div className="skeleton-line skeleton w-90"></div>
+                  <div className="skeleton-line skeleton w-80"></div>
+                  <div className="skeleton-line skeleton w-90"></div>
+                  <div className="skeleton-line skeleton w-70"></div>
+                  <div className="skeleton-line skeleton w-50"></div>
+                </div>
+                {/* results list skeleton
+                {[1,2,3,4].map(i => (
+                  <div className="result-item" key={i}>
+                    <div className="skeleton skeleton-title"></div>
+                    <div className="skeleton skeleton-url"></div>
+                  </div>
+                  */}
+              </>
+            )}
+
+            {!loading && error && (
+              <div className="answer-card">
+                <p className="answer-text">Error: {error}</p>
+              </div>
+            )}
+
+            {!loading && results && (
+              <>
+                <div className="answer-label">Answer</div>
+                <div className="answer-card">
+                  <p className="answer-text">{results.answer}</p>
+                </div>
+                {/* results.links left in place for future use */}
+                {results.links.map((item) => (
+                  <div className="result-item" key={item.url}>
+                    <div className="result-title">{item.title}</div>
+                    <div className="result-link">{item.url}</div>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>
